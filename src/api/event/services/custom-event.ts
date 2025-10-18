@@ -4,11 +4,11 @@ import * as cheerio from 'cheerio';
 const { factories } = require("@strapi/strapi");
 module.exports = factories.createCoreService(
     "api::event.event",
-    ({ strapi }) => ({ 
-        async fetchChallenges({ platform, page = 1, limit = 10 }) {
+    ({ strapi }) => ({
+        async fetchHackathons({ platform, page = 1, limit = 10 }) {
             try {
                 if (platform === 'devpost') {
-                    return await this.fetchDevpostChallenges(page, limit);
+                    return await this.fetchDevpostHackathons(page, limit);
                 }
                 // You can later add: else if (platform === 'hackerearth') {...}
                 else {
@@ -19,11 +19,26 @@ module.exports = factories.createCoreService(
                 throw err;
             }
         },
+        async fetchContests({ limit = 10 }) {
+            try {
+                const [codeforces, leetcode] = await Promise.all([
+                    this.fetchCodeforcesContests(limit),
+                    this.fetchLeetCodeContests(limit),
+                ]);
+
+                const combined = [...leetcode, ...codeforces];
+                console.log(`🎯 Total contests found: ${combined.length}`);
+                return combined;
+            } catch (err) {
+                strapi.log.error('Error fetching challenges:', err);
+                throw err;
+            }
+        },
 
         /**
-         * Fetch challenges from Devpost
+         * Fetch hackathons from Devpost
          */
-        async fetchDevpostChallenges(page = 1, limit = 10) {
+        async fetchDevpostHackathons(page = 1, limit = 10) {
             try {
                 const url = `https://devpost.com/api/hackathons?challenge_type=all&page=${page}`;
                 const response = await axios.get(url, {
@@ -43,12 +58,26 @@ module.exports = factories.createCoreService(
                         ? slug
                         : `https://devpost.com${slug}`;
 
+                    // Handle image fallbacks
+                    let image =
+                        h.image_url ||
+                        h.cover_image_url ||
+                        h.banner_url ||
+                        h.thumbnail_url ||
+                        (h.image && h.image.url) ||
+                        null;
+
+                    if (image && image.startsWith("//")) {
+                        image = `https:${image}`;
+                    }
+
                     return {
                         id: h.id,
                         title: h.title || "Untitled Hackathon",
                         url: fullUrl,
                         description: h.blurb || "No description available.",
-                        image: h.image_url || null,
+                        image,
+                        type: "hackathon",
                         platform: "devpost",
                         start_date: h.start_date || null,
                         end_date: h.end_date || null,
@@ -58,7 +87,7 @@ module.exports = factories.createCoreService(
                         country: h.country || "",
                     };
                 });
-                
+
                 console.log(`✅ Found ${challenges.length} Devpost challenges`);
                 return challenges;
             } catch (err) {
@@ -66,4 +95,82 @@ module.exports = factories.createCoreService(
                 throw err;
             }
         },
-    }));
+        async fetchCodeforcesContests(limit = 10) {
+            try {
+                const url = "https://codeforces.com/api/contest.list";
+                const response = await axios.get(url);
+                const contests = response.data.result || [];
+
+                const upcoming = contests
+                    .filter((c) => c.phase === "BEFORE")
+                    .slice(0, limit)
+                    .map((c) => ({
+                        id: c.id,
+                        title: c.name,
+                        url: `https://codeforces.com/contests/${c.id}`,
+                        description: "Official Codeforces programming contest",
+                        image: "https://sta.codeforces.com/s/63901/images/codeforces-logo-with-telegram.png",
+                        platform: "codeforces",
+                        type: "contest",
+                        start_date: new Date(c.startTimeSeconds * 1000).toISOString(),
+                        duration_hours: c.durationSeconds / 3600,
+                        status: c.phase,
+                    }));
+
+                console.log(`✅ Found ${upcoming.length} Codeforces contests`);
+                return upcoming;
+            } catch (err) {
+                console.error("❌ Error fetching Codeforces contests:", err.message);
+                return [];
+            }
+        },
+        async fetchLeetCodeContests(limit = 10) {
+            try {
+                const url = "https://leetcode.com/graphql";
+                const payload = {
+                    query: `
+                        query {
+                            allContests {
+                            title
+                            titleSlug
+                            startTime
+                            duration
+                            isVirtual
+                            }
+                        }
+                    `,
+                    variables: {},
+                };
+
+                const response = await axios.post(url, payload, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "User-Agent": "EventHub/1.0",
+                    },
+                });
+
+                const contests = response.data.data.allContests || [];
+                const upcoming = contests
+                    .filter((c) => Date.now() < c.startTime * 1000)
+                    .slice(0, limit)
+                    .map((c, i) => ({
+                        id: i + 1,
+                        title: c.title,
+                        url: `https://leetcode.com/contest/${c.titleSlug}`,
+                        description: "LeetCode coding contest",
+                        image:
+                            "https://leetcode.com/static/images/LeetCode_Sharing.png",
+                        platform: "leetcode",
+                        type: "contest",
+                        start_date: new Date(c.startTime * 1000).toISOString(),
+                        duration_hours: c.duration / 3600,
+                    }));
+
+                console.log(`✅ Found ${upcoming.length} LeetCode contests`);
+                return upcoming;
+            } catch (err) {
+                console.error("❌ Error fetching LeetCode contests:", err.message);
+                return [];
+            }
+        }
+        }));
