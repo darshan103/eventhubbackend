@@ -1,5 +1,5 @@
 import axios from 'axios';
-import * as cheerio from 'cheerio';
+import * as cheerio from "cheerio";
 
 const { factories } = require("@strapi/strapi");
 module.exports = factories.createCoreService(
@@ -19,7 +19,7 @@ module.exports = factories.createCoreService(
                 throw err;
             }
         },
-        async fetchContests({ limit = 10 }) {
+        async fetchContests({ limit = 20 }) {
             try {
                 const [codeforces, leetcode] = await Promise.all([
                     this.fetchCodeforcesContests(limit),
@@ -29,6 +29,14 @@ module.exports = factories.createCoreService(
                 const combined = [...leetcode, ...codeforces];
                 console.log(`🎯 Total contests found: ${combined.length}`);
                 return combined;
+            } catch (err) {
+                strapi.log.error('Error fetching challenges:', err);
+                throw err;
+            }
+        },
+        async fetchInternships({ limit = 10 }) {
+            try {
+                return await this.fetchInternshalaInternships();
             } catch (err) {
                 strapi.log.error('Error fetching challenges:', err);
                 throw err;
@@ -172,5 +180,72 @@ module.exports = factories.createCoreService(
                 console.error("❌ Error fetching LeetCode contests:", err.message);
                 return [];
             }
-        }
+        },
+        async fetchInternshalaInternships(domains = [
+            "software developer",
+            "full stack developer",
+            "frontend developer",
+            "backend developer",
+            "angular developer",
+            "react developer",
+            "web developer",
+            "nodejs developer",
+            "python developer",
+            "java developer",
+        ]) {
+            const allInternships = [];
+
+            for (const domain of domains) {
+                strapi.log.info(`🔍 Fetching internships for domain: ${domain}`);
+                try {
+                    const query = encodeURIComponent(domain);
+                    const url = `https://internshala.com/internships/${query}-internship`;
+
+                    const { data } = await axios.get(url, {
+                        headers: {
+                            "User-Agent":
+                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117 Safari/537.36",
+                            "Accept-Language": "en-US,en;q=0.9",
+                        },
+                    });
+
+                    const $ = cheerio.load(data);
+                    const internships = [];
+
+                    $(".individual_internship").each((i, el) => {
+                        const title = $(el).find(".heading_4_5").text().trim();
+                        const company = $(el).find(".heading_6 span").first().text().trim();
+                        const location = $(el).find("[id^='location_names']").text().trim();
+                        const stipend = $(el).find(".stipend").text().trim() || "Not disclosed";
+                        const duration = $(el).find(".item_body").eq(1).text().trim();
+                        const start_date = $(el).find(".item_body").first().text().trim();
+                        const relativeUrl = $(el).find(".view_detail_button").attr("href") || "";
+                        const url = `https://internshala.com${relativeUrl}`;
+                        const image = $(el).find("img").attr("src") || null;
+
+                        internships.push({
+                            id: `${domain}-${i + 1}`,
+                            title,
+                            company,
+                            location,
+                            stipend,
+                            duration,
+                            start_date,
+                            url,
+                            image,
+                            platform: "internshala",
+                            domain,
+                        });
+                    });
+
+                    strapi.log.info(`✅ Found ${internships.length} internships for ${domain}`);
+                    allInternships.push(...internships);
+                } catch (err) {
+                    strapi.log.error(`❌ Failed to fetch ${domain} internships: ${err.message}`);
+                }
+            }
+
+            strapi.log.info(`✅ Total internships fetched: ${allInternships.length}`);
+            return allInternships;
+        },
         }));

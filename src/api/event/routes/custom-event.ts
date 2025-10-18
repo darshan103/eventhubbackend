@@ -19,6 +19,15 @@ module.exports = {
                 auth: false, // set to true if you want authentication
                 policies: [],
             },
+        },
+        {
+            method: 'GET',
+            path: '/eventhub/internships',
+            handler: 'custom-event.getInternships',
+            config: {
+                auth: false, // set to true if you want authentication
+                policies: [],
+            },
         }
     ],
 };
