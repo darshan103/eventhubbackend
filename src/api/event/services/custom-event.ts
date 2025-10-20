@@ -10,7 +10,6 @@ module.exports = factories.createCoreService(
                 if (platform === 'devpost') {
                     return await this.fetchDevpostHackathons(page, limit);
                 }
-                // You can later add: else if (platform === 'hackerearth') {...}
                 else {
                     throw new Error(`Platform '${platform}' not supported yet`);
                 }
@@ -58,41 +57,59 @@ module.exports = factories.createCoreService(
                 });
 
                 const hackathons = response.data.hackathons || [];
+                // console.log(`🔍 hackathons are...`, hackathons);
 
-                const challenges = hackathons.slice(0, limit).map((h) => {
+                const challenges = hackathons.slice(0, limit).map((hackathon) => {
                     // Fallback logic for URL (different API versions may use url_slug or url)
-                    const slug = h.url_slug || h.url || "";
+                    const slug = hackathon.url_slug || hackathon.url || "";
                     const fullUrl = slug.startsWith("http")
                         ? slug
                         : `https://devpost.com${slug}`;
 
                     // Handle image fallbacks
                     let image =
-                        h.image_url ||
-                        h.cover_image_url ||
-                        h.banner_url ||
-                        h.thumbnail_url ||
-                        (h.image && h.image.url) ||
+                        hackathon.image_url ||
+                        hackathon.cover_image_url ||
+                        hackathon.banner_url ||
+                        hackathon.thumbnail_url ||
+                        (hackathon.image && hackathon.image.url) ||
                         null;
 
                     if (image && image.startsWith("//")) {
                         image = `https:${image}`;
                     }
 
+                    const cleanPrizeAmount = hackathon.prize_amount
+                        ? hackathon.prize_amount.replace(/<[^>]+>/g, '') // removes all HTML tags
+                        : 'TBD';
+
+                    let start_date = "TBD";
+                    let end_date = "TBD";
+
+                    if (hackathon.submission_period_dates) {
+                        const [start, end] = hackathon.submission_period_dates.split(" - ").map(s => s.trim());
+                        const yearMatch = end.match(/\b\d{4}\b/); // extract year from end date
+                        const year = yearMatch ? yearMatch[0] : new Date().getFullYear();
+
+                        start_date = start.includes(year) ? start : `${start}, ${year}`;
+                        end_date = end;
+                    }
+
                     return {
-                        id: h.id,
-                        title: h.title || "Untitled Hackathon",
-                        url: fullUrl,
-                        description: h.blurb || "No description available.",
-                        image,
+                        id: hackathon.id,
+                        title: hackathon.title,
+                        url: hackathon.url,
+                        image: hackathon.thumbnail_url ? `https:${hackathon.thumbnail_url}` : 'assets/placeholder.png',
                         type: "hackathon",
                         platform: "devpost",
-                        start_date: h.start_date || null,
-                        end_date: h.end_date || null,
-                        status: h.status || "unknown",
-                        organization_name: h.organization_name || null,
-                        city: h.city || "Remote",
-                        country: h.country || "",
+                        start_date: start_date || "TBD",
+                        end_date: end_date || "TBD",
+                        status: hackathon.open_state || "TBD",
+                        organization_name: hackathon.organization_name || "Unknown",
+                        city: hackathon.displayed_location?.location || "Online",
+                        prize_amount: cleanPrizeAmount || "TBD",
+                        registrations_count: hackathon.registrations_count || 0,
+                        featured: hackathon.featured || false,
                     };
                 });
 
@@ -224,7 +241,7 @@ module.exports = factories.createCoreService(
                         const image = $(el).find("img").attr("src") || null;
 
                         internships.push({
-                            id: `${domain}-${i + 1}`,
+                            id: `${i + 1}`,
                             title,
                             company,
                             location,
