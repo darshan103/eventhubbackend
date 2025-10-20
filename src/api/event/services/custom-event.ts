@@ -129,18 +129,36 @@ module.exports = factories.createCoreService(
                 const upcoming = contests
                     .filter((c) => c.phase === "BEFORE")
                     .slice(0, limit)
-                    .map((c) => ({
-                        id: c.id,
-                        title: c.name,
-                        url: `https://codeforces.com/contests/${c.id}`,
-                        description: "Official Codeforces programming contest",
-                        image: "https://sta.codeforces.com/s/63901/images/codeforces-logo-with-telegram.png",
-                        platform: "codeforces",
-                        type: "contest",
-                        start_date: new Date(c.startTimeSeconds * 1000).toISOString(),
-                        duration_hours: c.durationSeconds / 3600,
-                        status: c.phase,
-                    }));
+                    .map((c) => {
+                        const startDateObj = new Date(c.startTimeSeconds * 1000);
+
+                        // Format date as DD-MM-YYYY
+                        const start_date = startDateObj.toLocaleDateString("en-GB").replace(/\//g, "-");
+
+                        // Format time as HH:MM AM/PM
+                        const start_time = startDateObj.toLocaleString("en-US", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
+                        });
+
+                        return {
+                            id: c.id,
+                            title: c.name,
+                            url: `https://codeforces.com/contests/${c.id}`,
+                            description: "Official Codeforces programming contest",
+                            image: "https://sta.codeforces.com/s/63901/images/codeforces-logo-with-telegram.png",
+                            platform: "codeforces",
+                            type: "contest",
+                            start_date, // e.g. "26-10-2025"
+                            start_time, // e.g. "08:00 AM"
+                            duration_hours: c.durationSeconds / 3600,
+                            status: "upcoming",
+                            difficulty: "All Levels",
+                            prizes: "Top performers recognized on leaderboard",
+                            organization_name: "Codeforces",
+                        };
+                    });
 
                 console.log(`✅ Found ${upcoming.length} Codeforces contests`);
                 return upcoming;
@@ -154,17 +172,16 @@ module.exports = factories.createCoreService(
                 const url = "https://leetcode.com/graphql";
                 const payload = {
                     query: `
-                        query {
-                            allContests {
-                            title
-                            titleSlug
-                            startTime
-                            duration
-                            isVirtual
-                            }
-                        }
-                    `,
-                    variables: {},
+                query {
+                    allContests {
+                        title
+                        titleSlug
+                        startTime
+                        duration
+                        isVirtual
+                    }
+                }
+            `,
                 };
 
                 const response = await axios.post(url, payload, {
@@ -178,18 +195,36 @@ module.exports = factories.createCoreService(
                 const upcoming = contests
                     .filter((c) => Date.now() < c.startTime * 1000)
                     .slice(0, limit)
-                    .map((c, i) => ({
-                        id: i + 1,
-                        title: c.title,
-                        url: `https://leetcode.com/contest/${c.titleSlug}`,
-                        description: "LeetCode coding contest",
-                        image:
-                            "https://leetcode.com/static/images/LeetCode_Sharing.png",
-                        platform: "leetcode",
-                        type: "contest",
-                        start_date: new Date(c.startTime * 1000).toISOString(),
-                        duration_hours: c.duration / 3600,
-                    }));
+                    .map((c, i) => {
+                        const startDateObj = new Date(c.startTime * 1000);
+
+                        // Format date as DD-MM-YYYY
+                        const start_date = startDateObj.toLocaleDateString("en-GB").replace(/\//g, "-");
+
+                        // Format time as HH:MM AM/PM
+                        const start_time = startDateObj.toLocaleString("en-US", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
+                        });
+
+                        return {
+                            id: i + 1,
+                            title: c.title,
+                            url: `https://leetcode.com/contest/${c.titleSlug}`,
+                            description: "LeetCode coding contest",
+                            image: "https://leetcode.com/static/images/LeetCode_Sharing.png",
+                            platform: "leetcode",
+                            type: "contest",
+                            start_date, // e.g. "26-10-2025"
+                            start_time, // e.g. "08:00 AM"
+                            duration_hours: c.duration / 3600,
+                            status: "upcoming",
+                            difficulty: c.isVirtual ? "Virtual Contest" : "Standard",
+                            prizes: "Bragging rights & rating points",
+                            organization_name: "LeetCode",
+                        };
+                    });
 
                 console.log(`✅ Found ${upcoming.length} LeetCode contests`);
                 return upcoming;
@@ -198,6 +233,8 @@ module.exports = factories.createCoreService(
                 return [];
             }
         },
+
+
         async fetchInternshalaInternships(domains = [
             "software developer",
             "full stack developer",
