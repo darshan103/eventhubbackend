@@ -234,7 +234,6 @@ module.exports = factories.createCoreService(
             }
         },
 
-
         async fetchInternshalaInternships(domains = [
             "software developer",
             "full stack developer",
@@ -264,16 +263,18 @@ module.exports = factories.createCoreService(
                     });
 
                     const $ = cheerio.load(data);
+                    console.log("parsed HTML with cheerio", $?.html()?.substring(0, 1000) || "");
                     const internships = [];
 
                     $(".individual_internship").each((i, el) => {
-                        const title = $(el).find(".heading_4_5").text().trim();
-                        const company = $(el).find(".heading_6 span").first().text().trim();
-                        const location = $(el).find("[id^='location_names']").text().trim();
+                        const title = $(el).find(".job-internship-name").text().trim();
+                        const company = $(el).find(".company-name").first().text().trim();
+                        const location = $(el).find(".locations").text().trim();
                         const stipend = $(el).find(".stipend").text().trim() || "Not disclosed";
-                        const duration = $(el).find(".item_body").eq(1).text().trim();
-                        const start_date = $(el).find(".item_body").first().text().trim();
-                        const relativeUrl = $(el).find(".view_detail_button").attr("href") || "";
+                        const duration = $(el).find(".row-1-item").eq(2).find("span").text().trim() || "Not specified";
+                        let postedrawDays = $(el).find(".detail-row-2").text().trim();
+                        const postedDays = postedrawDays.split("\n")[0].trim();
+                        const relativeUrl = $(el).find(".job-internship-name a").attr("href") || "";
                         const url = `https://internshala.com${relativeUrl}`;
                         const image = $(el).find("img").attr("src") || null;
 
@@ -284,10 +285,11 @@ module.exports = factories.createCoreService(
                             location,
                             stipend,
                             duration,
-                            start_date,
                             url,
+                            postedDays,
                             image,
                             platform: "internshala",
+                            type: "internship",
                             domain,
                         });
                     });
