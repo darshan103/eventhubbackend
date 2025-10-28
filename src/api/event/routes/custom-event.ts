@@ -4,7 +4,7 @@ module.exports = {
     routes: [
         {
             method: 'GET',
-            path: '/eventhub/hackathons',
+            path: '/event/hackathons',
             handler: 'custom-event.getHackathons',
             config: {
                 auth: false, // set to true if you want authentication
@@ -13,7 +13,7 @@ module.exports = {
         },
         {
             method: 'GET',
-            path: '/eventhub/contests',
+            path: '/event/contests',
             handler: 'custom-event.getContests',
             config: {
                 auth: false, // set to true if you want authentication
@@ -22,7 +22,7 @@ module.exports = {
         },
         {
             method: 'GET',
-            path: '/eventhub/internships',
+            path: '/event/internships',
             handler: 'custom-event.getInternships',
             config: {
                 auth: false, // set to true if you want authentication
