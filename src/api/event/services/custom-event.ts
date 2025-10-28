@@ -233,7 +233,6 @@ module.exports = factories.createCoreService(
                 return [];
             }
         },
-
         async fetchInternshalaInternships(domains = [
             "software developer",
             "full stack developer",
