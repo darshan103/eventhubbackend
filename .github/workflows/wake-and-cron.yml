@@ -1,0 +1,15 @@
+name: Wake Backend & Run Cron
+
+on:
+  schedule:
+    - cron: "* * * * *"   # every 1 minutes
+  workflow_dispatch:        # manual trigger (optional)
+
+jobs:
+  wake-and-fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Wake backend
+        run: |
+          curl -s https://your-backend.onrender.com/cronjob/healthcheck
