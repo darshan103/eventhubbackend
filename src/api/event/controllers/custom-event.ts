@@ -3,36 +3,19 @@ const { factories } = require("@strapi/strapi");
 module.exports = factories.createCoreController(
     "api::event.event",
     ({ strapi }) => ({
-        async getHackathons(ctx:any) {
+        async getHackathons(ctx) {
             try {
-                const { platform = 'devpost', page = 1, limit = 10 } = ctx.query;
-                console.log(`Fetching challenges from platform: ${platform}, page: ${page}, limit: ${limit}`);
+                const { page = 1, limit = 10 } = ctx.query;
 
-                // Call service
-                const data = await strapi
-                    .service('api::event.custom-event')
-                    .fetchHackathons({ platform, page, limit });
+                const start = (page - 1) * limit;
 
-                ctx.body = {
-                    success: true,
-                    platform,
-                    count: data.length,
-                    data,
-                };
-            } catch (err) {
-                console.error('Error in getChallenges:', err);
-                ctx.badRequest('Failed to fetch challenges', { error: err.message });
-            }
-        },
-        async getContests(ctx: any) {
-            try {
-                const { limit = 10 } = ctx.query;
-                console.log(`Fetching challenges from platform: limit: ${limit}`);
-
-                // Call service
-                const data = await strapi
-                    .service('api::event.custom-event')
-                    .fetchContests({ limit });
+                // Read only from DB
+                const data = await strapi.entityService.findMany("api::event.event", {
+                    filters: { type: "hackathon" },
+                    start,
+                    limit,
+                    sort: { start_date: "DESC" },
+                });
 
                 ctx.body = {
                     success: true,
@@ -40,19 +23,20 @@ module.exports = factories.createCoreController(
                     data,
                 };
             } catch (err) {
-                console.error('Error in getChallenges:', err);
-                ctx.badRequest('Failed to fetch challenges', { error: err.message });
+                console.error("Error returning hackathons:", err);
+                ctx.badRequest("Failed to return hackathons", { error: err.message });
             }
         },
-        async getInternships(ctx: any) {
+
+        async getContests(ctx) {
             try {
                 const { limit = 10 } = ctx.query;
-                console.log(`Fetching challenges from platform: limit: ${limit}`);
 
-                // Call service
-                const data = await strapi
-                    .service('api::event.custom-event')
-                    .fetchInternships({ limit });
+                const data = await strapi.entityService.findMany("api::event.event", {
+                    filters: { type: "contest" },
+                    limit,
+                    sort: { start_date: "DESC" },
+                });
 
                 ctx.body = {
                     success: true,
@@ -60,9 +44,27 @@ module.exports = factories.createCoreController(
                     data,
                 };
             } catch (err) {
-                console.error('Error in getChallenges:', err);
-                ctx.badRequest('Failed to fetch challenges', { error: err.message });
+                ctx.badRequest("Failed to return contests");
             }
         },
 
-    }));
+        async getInternships(ctx) {
+            try {
+                const { limit = 10 } = ctx.query;
+
+                const data = await strapi.entityService.findMany("api::event.event", {
+                    filters: { type: "internship" },
+                    limit,
+                });
+
+                ctx.body = {
+                    success: true,
+                    count: data.length,
+                    data,
+                };
+            } catch (err) {
+                ctx.badRequest("Failed to return internships");
+            }
+        },
+    })
+);

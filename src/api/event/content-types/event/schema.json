@@ -9,22 +9,49 @@
   "options": {
     "draftAndPublish": false
   },
-  "pluginOptions": {},
   "attributes": {
     "title": {
-      "type": "string"
+      "type": "string",
+      "required": true
     },
     "description": {
-      "type": "string"
+      "type": "text"
     },
     "platform": {
       "type": "string"
     },
-    "link": {
+    "type": {
       "type": "string"
     },
-    "date": {
+    "externalId": {
       "type": "string"
+    },
+    "url": {
+      "type": "string"
+    },
+    "image": {
+      "type": "string"
+    },
+    "start_date": {
+      "type": "datetime"
+    },
+    "end_date": {
+      "type": "datetime"
+    },
+    "company": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "stipend": {
+      "type": "string"
+    },
+    "domain": {
+      "type": "string"
+    },
+    "raw_data": {
+      "type": "json"
     }
   }
 }
