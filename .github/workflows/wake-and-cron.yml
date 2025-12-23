@@ -12,4 +12,4 @@ jobs:
     steps:
       - name: Wake backend
         run: |
-          curl -s https://eventhubbackend-xi7u.onrender.com/cronjob/healthcheck
+          curl -s https://eventhubbackend-xi7u.onrender.com/api/cronjob/healthcheck
