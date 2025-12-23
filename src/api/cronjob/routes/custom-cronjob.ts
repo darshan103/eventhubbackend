@@ -10,15 +10,6 @@ module.exports = {
                 auth: false, // set to true if you want authentication
                 policies: [],
             },
-        },
-        {
-            method: 'GET',
-            path: '/cronjob/fetchhackathons',
-            handler: 'custom-cronjob.fetchHackathons',
-            config: {
-                auth: false, // set to true if you want authentication
-                policies: [],
-            },
-        },
+        }
      ],
 };

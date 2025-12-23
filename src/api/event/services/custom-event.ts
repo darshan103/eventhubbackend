@@ -1,13 +1,3 @@
-/**
- * UPDATED CUSTOM EVENT SERVICE
- * ---------------------------------------
- * ✔ Saves fetched data into Strapi DB
- * ✔ No manual return to controller
- * ✔ Works with cron.js for auto-fetch
- * ✔ Prevents duplicates using unique externalId OR title + platform
- * ✔ Includes Devpost, Codeforces, LeetCode, Internshala
- */
-
 import axios from "axios";
 import * as cheerio from "cheerio";
 
@@ -16,14 +6,12 @@ const { factories } = require("@strapi/strapi");
 module.exports = factories.createCoreService(
     "api::event.event",
     ({ strapi }) => ({
-        /* ---------------------------------------------------
-         * MAIN PUBLIC FUNCTIONS CALLED BY CRON
-         * --------------------------------------------------- */
-
-        async fetchHackathons({ platform, page = 1, limit = 10 }) {
+     
+        async saveHackathonsToDB({ platform, page = 1, limit = 20 }) {
             try {
                 if (platform === "devpost") {
                     const items = await this.fetchDevpostHackathons(page, limit);
+                    console.log(`Fetched ${items.length} hackathons from Devpost`, items);
                     await this.saveMany(items, "hackathon", "devpost");
                 } else {
                     throw new Error(`Platform '${platform}' not supported`);
@@ -36,7 +24,7 @@ module.exports = factories.createCoreService(
             }
         },
 
-        async fetchContests({ limit = 20 }) {
+        async saveContestsToDB({ limit = 20 }) {
             try {
                 const [cf, lc] = await Promise.all([
                     this.fetchCodeforcesContests(limit),
@@ -44,6 +32,7 @@ module.exports = factories.createCoreService(
                 ]);
 
                 const merged = [...lc, ...cf];
+                console.log(`Fetched ${merged.length} contests from Codeforces and LeetCode`, merged);
                 await this.saveMany(merged, "contest");
 
                 return true;
@@ -53,9 +42,10 @@ module.exports = factories.createCoreService(
             }
         },
 
-        async fetchInternships() {
+        async saveInternshipsToDB() {
             try {
                 const internships = await this.fetchInternshalaInternships();
+                console.log(`Fetched ${internships.length} internships from Internshala`, internships);
                 await this.saveMany(internships, "internship", "internshala");
                 return true;
             } catch (err) {
@@ -63,10 +53,6 @@ module.exports = factories.createCoreService(
                 throw err;
             }
         },
-
-        /* ---------------------------------------------------
-         * 🔥 SAVE IN DB (WITH UPSERT LOGIC)
-         * --------------------------------------------------- */
 
         async saveMany(items, type, platform = null) {
             for (const item of items) {
@@ -131,11 +117,7 @@ module.exports = factories.createCoreService(
             }
         },
 
-        /* ---------------------------------------------------
-         * 📌 FETCH 1: DEVPOST HACKATHONS
-         * --------------------------------------------------- */
-
-        async fetchDevpostHackathons(page = 1, limit = 10) {
+        async fetchDevpostHackathons(page = 1, limit = 20) {
             try {
                 const url = `https://devpost.com/api/hackathons?challenge_type=all&page=${page}`;
                 const response = await axios.get(url, {
@@ -172,11 +154,7 @@ module.exports = factories.createCoreService(
             }
         },
 
-        /* ---------------------------------------------------
-         * 📌 FETCH 2: CODEFORCES UPCOMING CONTESTS
-         * --------------------------------------------------- */
-
-        async fetchCodeforcesContests(limit = 10) {
+        async fetchCodeforcesContests(limit = 20) {
             try {
                 const url = "https://codeforces.com/api/contest.list";
                 const response = await axios.get(url);
@@ -206,11 +184,7 @@ module.exports = factories.createCoreService(
             }
         },
 
-        /* ---------------------------------------------------
-         * 📌 FETCH 3: LEETCODE CONTESTS
-         * --------------------------------------------------- */
-
-        async fetchLeetCodeContests(limit = 10) {
+        async fetchLeetCodeContests(limit = 20) {
             try {
                 const url = "https://leetcode.com/graphql";
                 const payload = {
@@ -255,10 +229,6 @@ module.exports = factories.createCoreService(
             }
         },
 
-        /* ---------------------------------------------------
-         * 📌 FETCH 4: INTERNSHALA
-         * --------------------------------------------------- */
-
         async fetchInternshalaInternships(
             domains = [
                 "software developer",
@@ -266,9 +236,11 @@ module.exports = factories.createCoreService(
                 "frontend developer",
                 "react developer",
                 "node developer",
-            ]
+            ],
+            perDomainLimit = 10
         ) {
-            const results = [];
+            const results: any[] = [];
+            const seen = new Set<string>(); // 🔐 dedup tracker
 
             for (const domain of domains) {
                 try {
@@ -281,8 +253,11 @@ module.exports = factories.createCoreService(
                     });
 
                     const $ = cheerio.load(data);
+                    let count = 0;
 
                     $(".individual_internship").each((i, el) => {
+                        if (count >= perDomainLimit) return false;
+
                         const title = $(el).find(".job-internship-name").text().trim();
                         const company = $(el).find(".company-name").first().text().trim();
                         const location = $(el).find(".locations").text().trim();
@@ -291,17 +266,33 @@ module.exports = factories.createCoreService(
                             .find(".job-internship-name a")
                             .attr("href");
 
+                        const fullUrl = relativeUrl
+                            ? `https://internshala.com${relativeUrl}`
+                            : null;
+
+                        // 🔑 Deduplication key
+                        const dedupKey =
+                            fullUrl ||
+                            `${title.toLowerCase()}-${company.toLowerCase()}-${domain}`;
+
+                        // ⛔ Skip duplicates
+                        if (seen.has(dedupKey)) return;
+
+                        seen.add(dedupKey);
+
                         results.push({
                             id: `${domain}-${i}`,
                             title,
                             company,
                             location,
                             stipend,
-                            url: `https://internshala.com${relativeUrl}`,
+                            url: fullUrl,
                             platform: "internshala",
                             type: "internship",
                             domain,
                         });
+
+                        count++;
                     });
                 } catch (err) {
                     strapi.log.error(`❌ Internshala error: ${domain}`, err);
@@ -310,5 +301,12 @@ module.exports = factories.createCoreService(
 
             return results;
         },
+
+        async saveAllEvents() {
+            console.log("Saving all events...");
+            await this.saveHackathonsToDB({ platform: "devpost", page: 1, limit: 20 });
+            await this.saveContestsToDB({ limit: 20 });
+            await this.saveInternshipsToDB();
+        }
     })
 );
