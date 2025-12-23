@@ -2,7 +2,7 @@ name: Wake Backend & Run Cron
 
 on:
   schedule:
-    - cron: "* * * * *"   # every 1 minutes
+    - cron: "*/5 * * * *"   # every 1 minutes
   workflow_dispatch:        # manual trigger (optional)
 
 jobs:
