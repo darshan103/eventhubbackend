@@ -4,7 +4,7 @@ const cron = require("node-cron");
 
 module.exports = ({ strapi }) => {
     // Runs every 6 hours
-    cron.schedule("0 */6 * * *", async () => {
+    cron.schedule("* * * * *", async () => {
         try {
             strapi.log.info("⏰ Cron: saveAllEvents started");
 
