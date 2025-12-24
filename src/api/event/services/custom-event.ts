@@ -61,6 +61,7 @@ module.exports = factories.createCoreService(
         },
 
         async upsertEvent(item, type, platform) {
+            const s = strapi;
             try {
                 const externalId = item.id || item.externalId || null;
 
@@ -68,7 +69,7 @@ module.exports = factories.createCoreService(
                     ? { externalId }
                     : { title: item.title, platform: item.platform };
 
-                const existing = await strapi.entityService.findMany(
+                const existing = await s.entityService.findMany(
                     "api::event.event",
                     { filters, limit: 1 }
                 );
@@ -104,16 +105,16 @@ module.exports = factories.createCoreService(
                 };
 
                 if (existing.length > 0) {
-                    await strapi.entityService.update(
+                    await s.entityService.update(
                         "api::event.event",
                         existing[0].id,
                         { data }
                     );
                 } else {
-                    await strapi.entityService.create("api::event.event", { data });
+                    await s.entityService.create("api::event.event", { data });
                 }
             } catch (err) {
-                strapi.log.error("❌ Error saving event:", err);
+                s.log.error("❌ Error saving event:", err);
             }
         },
 
